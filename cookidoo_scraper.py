@@ -1,95 +1,123 @@
 from local_settings import username, password
+import re
 import asyncio
-import httpx
-from selectolax.parser import HTMLParser
+from playwright.async_api import async_playwright
+from classes import Ingredient
+from functions import parse_amount_and_unit
 
 BASE_URL = "https://cookidoo.de"
 
-async def get_shopping_list(email: str, password: str) -> list[str]:
-    async with httpx.AsyncClient(follow_redirects=True) as client:
-        # 1. Startseite laden
-        resp = await client.get(BASE_URL)
-        tree = HTMLParser(resp.text)
 
-        # 2. Login-Link finden
-        login_path = None
-        for a in tree.css('a'):
-            href = a.attributes.get('href', '')
-            if 'profile' in href and 'login' in href:
-                login_path = href
-                break
+def parse_ingredients(ingredients):
+    ingredients_clean = []
 
-        if not login_path:
-            raise Exception("Login-Link nicht gefunden!")
+    for raw_ingredient in ingredients:
+        if raw_ingredient.startswith("\n"):
+            continue
 
-        login_url = BASE_URL + login_path
+        cleaned = raw_ingredient.strip()
+        if not cleaned or cleaned == "\n":
+            continue  # leere Einträge überspringen
 
-        # 3. Login-Seite laden
-        login_page = await client.get(login_url)
-        login_tree = HTMLParser(login_page.text)
+        # Auftrennen: Zutat und (optional) Menge + Einheit
+        parts = cleaned.split("\n")
+        name = parts[0].strip()
 
-        # 4. Login-Formular analysieren
-        form_action = None
-        request_id = None
+        amount = None
+        unit = None
 
-        for form in login_tree.css('form'):
-            form_action = form.attributes.get('action')
-            for input_tag in form.css('input'):
-                if input_tag.attributes.get('name') == 'requestId':
-                    request_id = input_tag.attributes.get('value')
-            break
+        if len(parts) > 1:
+            # Beispiel: "400 g" -> amount: 400, unit: g
+            amount, unit = parse_amount_and_unit(parts[1].strip())
+            # amount_unit_match = re.match(r"([\d,\.]+)\s*(.+)", parts[1].strip())
+            # if amount_unit_match:
+            #     amount_str, unit = amount_unit_match.groups()
+            #     amount_str = amount_str.replace(",", ".")  # Komma zu Punkt falls nötig
+            #     try:
+            #         amount = float(amount_str)
+            #     except ValueError:
+            #         amount = None  # falls parsing fehlschlägt einfach None setzen
 
-        if not form_action or not request_id:
-            raise Exception("Login-Formular oder Request-ID nicht gefunden!")
+        # Ingredient-Objekt erstellen
+        ingredient_obj = Ingredient(name=name, amount=amount, unit=unit)
+        ingredients_clean.append(ingredient_obj)
 
-        # 5. Login-Daten vorbereiten
-        login_data = {
-            "username": email,
-            "password": password,
-            "requestId": request_id
-        }
+    return ingredients_clean
 
-        # Wichtig: Login-POST geht auf CIAM-Server!
-        login_resp = await client.post(form_action, data=login_data, headers={
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Origin": BASE_URL,
-            "Referer": login_url,
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-        })
 
-        if login_resp.status_code != 200:
-            raise Exception(f"Login fehlgeschlagen! Status: {login_resp.status_code}")
+async def cookidoo_shoppinglist(
+    email: str, password: str, base_url=BASE_URL, local="de-DE"
+):
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=False
+        )  # headless=True wenn unsichtbar gewünscht
+        context = await browser.new_context()
+        page = await context.new_page()
 
-        # 6. Check: sind wir jetzt eingeloggt?
-        # Lade nochmal die Hauptseite oder direkt die Einkaufsliste
-        shopping_url = BASE_URL + "/shopping/de-DE/owned-ingredients"
-        shop_resp = await client.get(shopping_url)
+        # 1. Startseite öffnen
+        await page.goto(BASE_URL)
 
-        if shop_resp.status_code != 200:
-            raise Exception(f"Fehler beim Abrufen der Einkaufsliste! Status: {shop_resp.status_code}")
+        # 2. Cookie-Abfrage akzeptieren (falls vorhanden)
+        try:
+            await page.click("text=Akzeptieren", timeout=3000)
+            print("Cookies akzeptiert.")
+        except:
+            print("Keine Cookie-Abfrage gefunden.")
 
-        # 7. Zutaten extrahieren
-        shop_tree = HTMLParser(shop_resp.text)
-        ingredients = []
+        await page.click("button.core-nav__trigger")
 
-        for li in shop_tree.css('li.pm-check-group__list-item'):
-            text = li.text(strip=True)
-            if text:
-                ingredients.append(text)
+        # 2. Auf "Anmelden" klicken
+        await page.click("text=Anmelden")
 
-        return ingredients
+        # 3. Warten bis Login-Seite geladen ist
+        await page.wait_for_selector('input[name="username"]')
 
-# Test-Call
-if __name__ == "__main__":
-    import sys
+        # 4. Login-Daten eingeben
+        await page.fill('input[name="username"]', email)
+        await page.fill('input[name="password"]', password)
 
-    if not username:
-        email = sys.argv[1]
-        password = sys.argv[2]
-    else:
-        email = username
+        # 5. Formular abschicken
+        await page.click('button[type="submit"]')
 
-    ingredients = asyncio.run(get_shopping_list(email, password))
-    print("Gefundene Zutaten:")
-    for item in ingredients:
-        print("-", item)
+        # 6. Warten, bis die Seite nach Login geladen hat
+        await page.wait_for_load_state("networkidle")
+
+        # 7. Direkt zur Einkaufsliste gehen
+        await page.goto(f"{BASE_URL}/shopping/{local}")
+
+        # 8. Zutaten auslesen
+        await page.wait_for_selector("li.pm-check-group__list-item")
+
+        ingredients = await page.locator(
+            "li.pm-check-group__list-item"
+        ).all_inner_texts()
+
+        await browser.close()
+        return parse_ingredients(ingredients=ingredients)
+
+from playwright.async_api import Page
+
+async def check_off_transferred_ingredients(page: Page, ingredients: list):
+    for ing in ingredients:
+        if not ing.transferred:
+            continue
+
+        # Baue einen robusten Selektor
+        selector = f'li:has(span[data-type="ingredientNotation"]:has-text("{ing.name}"))'
+        if ing.amount and ing.unit:
+            selector += f':has(span[data-type="value"]:has-text("{int(ing.amount)}"))'
+            selector += f':has(span[data-type="unitNotation"]:has-text("{ing.unit}"))'
+
+        li_element = await page.query_selector(selector)
+        if li_element:
+            checkbox = await li_element.query_selector('core-checkbox')
+            if checkbox:
+                checked = await checkbox.get_attribute("aria-checked")
+                if checked != "true":
+                    await checkbox.click()
+                    print(f"✓ Abgehakt: {ing.name}")
+                else:
+                    print(f"⚠️ Bereits abgehakt: {ing.name}")
+        else:
+            print(f"❌ Nicht gefunden in der Seite: {ing.name}")
