@@ -9,6 +9,7 @@ import logging
 import sys
 
 from bring_api import Bring
+
 # from cookidoo_scraper import cookidoo_shoppinglist, check_off_transferred_ingredients
 from cookidoo_scraper_new import CookidooScraper
 
@@ -162,6 +163,7 @@ async def push_to_bring(
 
 #     check_off_transferred_ingredients()
 
+
 async def main():
     # Login-Daten aus local_settings oder CLI
     email = username if username else sys.argv[1]
@@ -169,6 +171,7 @@ async def main():
 
     # Scraper mit Cookie-Cache und Passwortschutz initialisieren
     scraper = CookidooScraper(email=email, password=pw)
+    await scraper.launch()
 
     # Zutaten holen
     ingredients = await scraper.fetch_ingredients()
@@ -186,6 +189,7 @@ async def main():
     # print(ingredients)
     await scraper.check_off_transferred_ingredients(ingredients=ingredients)
     await scraper.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

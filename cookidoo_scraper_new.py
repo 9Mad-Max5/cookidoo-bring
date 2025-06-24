@@ -5,9 +5,16 @@ import base64
 import hashlib
 from typing import List
 from cryptography.fernet import Fernet
-from playwright.async_api import async_playwright, Page
+from playwright.async_api import (
+    async_playwright,
+    Browser,
+    BrowserContext,
+    Page,
+    TimeoutError as PlaywrightTimeoutError,
+)
 from functions import parse_amount_and_unit
 from classes import Ingredient
+from time import sleep
 
 BASE_URL = "https://cookidoo.de"
 COOKIE_FILE = "cookidoo_cookies.enc"
@@ -19,22 +26,17 @@ class CookidooScraper:
         self.password = password
         self.base_url = base_url
         self.locale = locale
-        self.context = None
-        self.page = None
-        self.browser = None
+        self.browser: Browser = None
+        self.context: BrowserContext = None
+        self.page: Page = None
+        self.playwright = None
 
-    # just a wrapper now to maintain the 
     def _generate_key(self):
         return self._password_to_fernet_key(self.password)
 
     def _password_to_fernet_key(self, password: str) -> Fernet:
-        # 1. Hash aus Passwort erzeugen (SHA-256 = 32 Bytes)
         key = hashlib.sha256(password.encode()).digest()
-
-        # 2. Base64-codieren → Fernet-kompatibel
         fernet_key = base64.urlsafe_b64encode(key)
-
-        # 3. Fernet-Instanz zurückgeben
         return Fernet(fernet_key)
 
     def _save_encrypted_cookies(self, cookies):
@@ -77,11 +79,11 @@ class CookidooScraper:
 
     async def _load_context(self):
         cookies = self._load_encrypted_cookies()
-        context = await self.browser.new_context()
-        self.page = await context.new_page()
+        self.context = await self.browser.new_context()
+        self.page = await self.context.new_page()
 
         if cookies:
-            await context.add_cookies(cookies)
+            await self.context.add_cookies(cookies)
             await self.page.goto(f"{self.base_url}/shopping/{self.locale}")
             if "Anmelden" in await self.page.content():
                 print("⚠️ Cookies nicht mehr gültig – erneuter Login notwendig.")
@@ -91,23 +93,33 @@ class CookidooScraper:
         else:
             await self._login()
 
-        # Cookies nach Login speichern
-        cookies = await context.cookies()
+        cookies = await self.context.cookies()
         self._save_encrypted_cookies(cookies)
-        self.context = context
+
+    async def launch(self):
+        self.playwright = await async_playwright().start()
+        self.browser = await self.playwright.chromium.launch(headless=False)
+        await self._load_context()
 
     async def fetch_ingredients(self) -> List[Ingredient]:
-        async with async_playwright() as p:
-            self.browser = await p.chromium.launch(headless=False)
-            await self._load_context()
-            await self.page.goto(f"{self.base_url}/shopping/{self.locale}")
-            await self.page.wait_for_selector("li.pm-check-group__list-item")
+        await self.page.goto(f"{self.base_url}/shopping/{self.locale}")
 
-            raw_ingredients = await self.page.locator(
+        sections = await self.page.locator(
+            'core-handle-form[type="ingredients-list"] pm-check-group'
+        ).all()
+
+        raw_ingredients = []
+        for section in sections:
+            # Warte auf das erste <li> in diesem Abschnitt
+            await section.locator("li.pm-check-group__list-item").first.wait_for()
+
+            # Hole alle Zutaten *innerhalb* dieses Abschnitts
+            texts = await section.locator(
                 "li.pm-check-group__list-item"
             ).all_inner_texts()
+            raw_ingredients.extend(texts)  # extend statt append -> flache Liste
 
-            return self._parse_ingredients(raw_ingredients)
+        return self._parse_ingredients(raw_ingredients)
 
     def _parse_ingredients(self, ingredients: List[str]) -> List[Ingredient]:
         ingredients_clean = []
@@ -125,37 +137,60 @@ class CookidooScraper:
         return ingredients_clean
 
     async def check_off_transferred_ingredients(self, ingredients: List[Ingredient]):
+        # await self.page.goto(f"{self.base_url}/shopping/{self.locale}")
+        await self.page.wait_for_selector("li.pm-check-group__list-item")
+
         items = self.page.locator("li.pm-check-group__list-item")
         count = await items.count()
 
         for ing in ingredients:
-            if not getattr(ing, "transferred", False):
-                continue
+            # if not getattr(ing, "transferred", False):
+            #     continue
 
             found = False
             for i in range(count):
                 item = items.nth(i)
 
-                # Einzelne Felder extrahieren
+                name = None
+                value = None
+                unit = None
+
                 try:
-                    name = await item.locator('span[data-type="ingredientNotation"]').text_content()
+                    name = await item.locator(
+                        'span[data-type="ingredientNotation"]'
+                    ).text_content()
                     value = await item.locator('span[data-type="value"]').text_content()
-                    unit = await item.locator('span[data-type="unitNotation"]').text_content()
-                except:
-                    continue  # Wenn Struktur fehlschlägt, überspringen
+                    unit = await item.locator(
+                        'span[data-type="unitNotation"]'
+                    ).text_content(timeout=100)
+                    # Reduced the timeout as there are multiple ingredients which don't need a unit
+                except PlaywrightTimeoutError:
+                    pass
+                except Exception as e:
+                    print(e)
+                    continue
 
-                # Whitespace säubern
                 name = name.strip()
-                value = value.strip()
-                unit = unit.strip()
+                value, _ = parse_amount_and_unit(value.strip())
+                if unit:
+                    unit = unit.strip()
 
-                # Vergleich
-                if name == ing.name and value == str(int(ing.amount)) and unit == ing.unit:
+                if name == ing.name and value == str(ing.amount) and unit == ing.unit:
                     checkbox = item.locator("core-checkbox")
                     checked = await checkbox.get_attribute("aria-checked")
                     if checked != "true":
-                        await checkbox.click()
+                        # try:
+                        await checkbox.scroll_into_view_if_needed()
+                        await checkbox.click(force=True)
                         print(f"✓ Abgehakt: {name}")
+                        sleep(1)
+
+                        # except Exception as e:
+                        #     print(f"[{idx}] Fehler beim Klick: {e}")
+                        #     await self.page.screenshot(
+                        #         path=f"error_click_{idx}.png", full_page=True
+                        #     )
+                        #     raise
                     else:
                         print(f"⚠️ Bereits abgehakt: {name}")
                     found = True
@@ -165,5 +200,9 @@ class CookidooScraper:
                 print(f"❌ Nicht gefunden: {ing.name}")
 
     async def close(self):
-        await self.browser.close()
-        # await self.playwright.stop()
+        if self.context:
+            await self.context.close()
+        if self.browser:
+            await self.browser.close()
+        if self.playwright:
+            await self.playwright.stop()
