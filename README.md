@@ -76,3 +76,22 @@ You need **Python 3.11+**.
 pip install -r requirements.txt
 python bring_sync.py
 ```
+---
+
+## 📅 Usage Scenarios
+
+- Keep your Bring shopping list up to date with your planned Cookidoo meals.
+- Syncs quantities in a smart way (e.g. adds amounts together instead of duplicating items).
+- Can be scheduled on a server or NAS to run continuously.
+
+## ⚠️ Legal
+
+This project is **not affiliated with**, **endorsed by**, or **associated with** Vorwerk or the Cookidoo service. It merely uses publicly accessible interfaces and resources.
+
+All trademarks and copyrights belong to their respective owners.
+
+## ✉️ Contributing / Issues
+
+Missing a feature or something not working? Please open an [issue on GitHub](https://github.com/yourusername/cookidoo-bring/issues) and describe the problem or feature request.
+
+Contributions are welcome!
