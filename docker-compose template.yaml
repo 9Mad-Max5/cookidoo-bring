@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  cookidoo-bring:
+    image: 9madmax5/cookidoo-bring:dev
+    container_name: cookidoo-bring
+    restart: unless-stopped
+    environment:
+      USERNAME: cookidoo@example.com
+      PASSWORD: cookidoo_pass
+      BRING_USER: bring@example.com
+      BRING_PW: bring_pass
+      LISTE: MeineEinkaufsliste
+      INTERVAL_MINUTES: 15 #optional default: 15 to set how often it should push to bring
+      COOKIDOO_URL: https://cookidoo.de #optional default: https://cookidoo.de to set the cookidoo url if caused by a different country
+      COOKIDOO_LANG: de-DE

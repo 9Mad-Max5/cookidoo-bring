@@ -1,3 +1,6 @@
 pint
 bring-api
 cryptography
+mashumaro
+orjson
+playwright

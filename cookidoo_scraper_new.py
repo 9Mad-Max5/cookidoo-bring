@@ -16,12 +16,14 @@ from functions import parse_amount_and_unit
 from classes import Ingredient
 from time import sleep
 
-BASE_URL = "https://cookidoo.de"
 COOKIE_FILE = "cookidoo_cookies.enc"
 
-
 class CookidooScraper:
-    def __init__(self, email: str, password: str, base_url=BASE_URL, locale="de-DE"):
+    def __init__(self, email: str, password: str, base_url: str, locale: str):
+        '''
+        The main scraper for loading the ingredients from cookidoo.
+        It is not designed to give a full API but rather a simple wrapper for the shopping list.
+        '''
         self.email = email
         self.password = password
         self.base_url = base_url
@@ -98,7 +100,7 @@ class CookidooScraper:
 
     async def launch(self):
         self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=False)
+        self.browser = await self.playwright.chromium.launch(headless=True)
         await self._load_context()
 
     async def fetch_ingredients(self) -> List[Ingredient]:

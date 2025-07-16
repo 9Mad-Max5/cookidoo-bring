@@ -1,0 +1,14 @@
+.env
+.gitignore
+data
+docker-compose template.yaml
+docker-compose.yml
+Dockerfile
+output.json
+settings
+cookidoo_cookies.enc
+local_settings.py
+
+logs/
+.vscode/
+old/

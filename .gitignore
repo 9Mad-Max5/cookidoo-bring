@@ -176,3 +176,6 @@ logs/
 .vscode/
 scraped/
 local_settings.py
+docker-compose.yml
+old/
+cookidoo_cookies.enc

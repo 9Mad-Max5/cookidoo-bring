@@ -1,26 +1,19 @@
-from local_settings import bring_user, bring_pw, username, password
+import os
+import sys
+import logging
+import aiohttp
+import asyncio
+
+from cookidoo_scraper_new import CookidooScraper
 from bring_api import Bring
 from pint import UnitRegistry
 from pint.errors import UndefinedUnitError
 
-import aiohttp
-import asyncio
-import logging
-import sys
-
-from bring_api import Bring
-
-# from cookidoo_scraper import cookidoo_shoppinglist, check_off_transferred_ingredients
-from cookidoo_scraper_new import CookidooScraper
-
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
-LISTE = "Wohnung"
-
 ureg = UnitRegistry(auto_reduce_dimensions=True)
-ureg.default_format = "~"  # Kurzformen der Einheiten
+ureg.formatter.default_format = "~"
 Q_ = ureg.Quantity
-
 
 def is_valid_quantity(q: str) -> bool:
     try:
@@ -84,7 +77,7 @@ async def push_to_bring(
         bringesponselists = await bring.load_lists()
         bringlists = bringesponselists.lists
         for lis in bringlists:
-            if LISTE in lis.name:
+            if liste in lis.name:
                 selected_list = lis
 
         items = await bring.get_list(selected_list.listUuid)
@@ -165,12 +158,41 @@ async def push_to_bring(
 
 
 async def main():
+    username = os.getenv("USERNAME")
+    password = os.getenv("PASSWORD")
+    bring_user = os.getenv("BRING_USER")
+    bring_pw = os.getenv("BRING_PW")
+    liste = os.getenv("LISTE")
+    cookidoo_url = os.getenv("COOKIDOO_URL", "https://cookidoo.de")
+    cookidoo_lang = os.getenv("COOKIDOO_LANG", "de-DE")
+
+    # Fehlende Variablen prüfen
+    missing = []
+
+    if not username:
+        missing.append("Cookidoo username (USERNAME)")
+    if not password:
+        missing.append("Cookidoo password (PASSWORD)")
+    if not bring_user:
+        missing.append("Bring username (BRING_USER)")
+    if not bring_pw:
+        missing.append("Bring password (BRING_PW)")
+    if not liste:
+        missing.append("Shopping list (LISTE)")
+
+    if missing:
+        print("Missing environment variables:")
+        for item in missing:
+            print(" -", item)
+        print("Please add them to your docker environment.")
+        sys.exit(1)
+
     # Login-Daten aus local_settings oder CLI
     email = username if username else sys.argv[1]
     pw = password if username else sys.argv[2]
 
     # Scraper mit Cookie-Cache und Passwortschutz initialisieren
-    scraper = CookidooScraper(email=email, password=pw)
+    scraper = CookidooScraper(email=email, password=pw, base_url=cookidoo_url, locale=cookidoo_lang)
     await scraper.launch()
 
     # Zutaten holen
@@ -180,7 +202,7 @@ async def main():
     await push_to_bring(
         username=bring_user,
         password=bring_pw,
-        liste=LISTE,
+        liste=liste,
         ingredients=ingredients,
         adding_mode=False,
     )
@@ -191,5 +213,21 @@ async def main():
     await scraper.close()
 
 
+import time
+
+
+async def main_loop():
+    interval_minutes = int(os.getenv("INTERVAL_MINUTES", "15"))  # Default 15 min
+
+    while True:
+        try:
+            await main()
+        except Exception as e:
+            logging.exception("Error in the main loop: %s", e)
+
+        logging.info(f"Wait {interval_minutes} minutes till the next run...")
+        await asyncio.sleep(interval_minutes * 60)
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main_loop())
