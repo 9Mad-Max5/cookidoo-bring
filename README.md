@@ -16,6 +16,7 @@ This project uses `Playwright` and a headless browser to scrape ingredients from
 
 
 ## 🐳 Quick Start with Docker
+[container on dockerhub](https://hub.docker.com/r/9madmax5/cookidoo-bring)
 
 Create a `docker-compose.yaml` like this:
 
@@ -89,6 +90,6 @@ All trademarks and copyrights belong to their respective owners.
 
 ## ✉️ Contributing / Issues
 
-Missing a feature or something not working? Please open an [issue on GitHub](https://github.com/yourusername/cookidoo-bring/issues) and describe the problem or feature request.
+Missing a feature or something not working? Please open an [issue on GitHub](https://github.com/9Mad-Max5/cookidoo-bring/issues) and describe the problem or feature request.
 
 Contributions are welcome!
