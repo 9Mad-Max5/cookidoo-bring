@@ -4,7 +4,6 @@ Automatically sync your **Cookidoo** shopping list with your **Bring!** grocery 
 
 This project uses `Playwright` and a headless browser to scrape ingredients from your Cookidoo account and pushes them to a Bring! shopping list. It's ideal for automating your weekly meal planning workflow using Docker.
 
----
 
 ## ✨ Features
 
@@ -15,7 +14,6 @@ This project uses `Playwright` and a headless browser to scrape ingredients from
 - ✅ Supports custom sync intervals (e.g., every 15 minutes)
 - ✅ Works with country-specific Cookidoo domains/languages
 
----
 
 ## 🐳 Quick Start with Docker
 
@@ -40,7 +38,6 @@ services:
       COOKIDOO_LANG: de-DE                  # optional, e.g., de-DE, en-GB, es-ES
 ```
 
----
 
 ## ⚙️ Environment Variables
 
@@ -55,7 +52,6 @@ services:
 | `COOKIDOO_URL`     | ❌        | Cookidoo base URL (default: `https://cookidoo.de`)          |
 | `COOKIDOO_LANG`    | ❌        | Language code (default: `de-DE`, examples: `en-GB`, `es-ES`) |
 
----
 
 ## 🔁 How It Works
 
@@ -66,7 +62,6 @@ services:
 5. Optionally merges similar items
 6. Marks items as transferred on Cookidoo to avoid duplicates
 
----
 
 ## 🧪 Local Development
 
@@ -76,7 +71,7 @@ You need **Python 3.11+**.
 pip install -r requirements.txt
 python bring_sync.py
 ```
----
+
 
 ## 📅 Usage Scenarios
 
@@ -84,11 +79,13 @@ python bring_sync.py
 - Syncs quantities in a smart way (e.g. adds amounts together instead of duplicating items).
 - Can be scheduled on a server or NAS to run continuously.
 
+
 ## ⚠️ Legal
 
 This project is **not affiliated with**, **endorsed by**, or **associated with** Vorwerk or the Cookidoo service. It merely uses publicly accessible interfaces and resources.
 
 All trademarks and copyrights belong to their respective owners.
+
 
 ## ✉️ Contributing / Issues
 
