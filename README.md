@@ -45,7 +45,6 @@ services:
 
 
 ## ⚙️ Environment Variables
-
 | Variable           | Required | Description                                                  |
 |--------------------|----------|--------------------------------------------------------------|
 | `USERNAME`         | ✅        | Cookidoo login email                                         |
@@ -59,7 +58,6 @@ services:
 
 
 ## 🔁 How It Works
-
 1. Logs into your Cookidoo account using Playwright (headless browser)
 2. Scrapes the current shopping list items
 3. Normalizes/combines quantities where appropriate
@@ -69,7 +67,6 @@ services:
 
 
 ## 🧪 Local Development
-
 You need **Python 3.11+**.
 
 ```bash
@@ -79,21 +76,18 @@ python bring_sync.py
 
 
 ## 📅 Usage Scenarios
-
 - Keep your Bring shopping list up to date with your planned Cookidoo meals.
 - Syncs quantities in a smart way (e.g. adds amounts together instead of duplicating items).
 - Can be scheduled on a server or NAS to run continuously.
 
 
 ## ⚠️ Legal
-
 This project is **not affiliated with**, **endorsed by**, or **associated with** Vorwerk or the Cookidoo service. It merely uses publicly accessible interfaces and resources.
 
 All trademarks and copyrights belong to their respective owners.
 
 
 ## ✉️ Contributing / Issues
-
 Missing a feature or something not working? Please open an [issue on GitHub](https://github.com/9Mad-Max5/cookidoo-bring/issues) and describe the problem or feature request.
 
 Contributions are welcome!
