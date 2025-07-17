@@ -1,4 +1,11 @@
 # 🛒 cookidoo-bring
+[![Docker Pulls](https://img.shields.io/docker/pulls/9madmax5/cookidoo-bring?style=flat-square)](https://hub.docker.com/r/9madmax5/cookidoo-bring)
+[![GitHub Stars](https://img.shields.io/github/stars/9Mad-Max5/cookidoo-bring?style=flat-square)](https://github.com/9Mad-Max5/cookidoo-bring/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/9Mad-Max5/cookidoo-bring?style=flat-square)](https://github.com/9Mad-Max5/cookidoo-bring/network/members)
+[![GitHub Issues](https://img.shields.io/github/issues/9Mad-Max5/cookidoo-bring?style=flat-square)](https://github.com/9Mad-Max5/cookidoo-bring/issues)
+[![GitHub License](https://img.shields.io/github/license/9Mad-Max5/cookidoo-bring?style=flat-square)](https://github.com/9Mad-Max5/cookidoo-bring/blob/main/LICENSE)
+
+> ✨ [GitHub Repository](https://github.com/9Mad-Max5/cookidoo-bring) • 🐳 [Docker Hub](https://hub.docker.com/r/9madmax5/cookidoo-bring)
 
 Automatically sync your **Cookidoo** shopping list with your **Bring!** grocery list – no more manual copy-pasting!
 
@@ -6,7 +13,6 @@ This project uses `Playwright` and a headless browser to scrape ingredients from
 
 
 ## ✨ Features
-
 - ✅ Scrapes your Cookidoo shopping list
 - ✅ Pushes items to a selected Bring! list
 - ✅ Normalizes and merges quantities (e.g., `200g` + `100g` → `300g`)
@@ -16,8 +22,6 @@ This project uses `Playwright` and a headless browser to scrape ingredients from
 
 
 ## 🐳 Quick Start with Docker
-[container on dockerhub](https://hub.docker.com/r/9madmax5/cookidoo-bring)
-
 Create a `docker-compose.yaml` like this:
 
 ```yaml
